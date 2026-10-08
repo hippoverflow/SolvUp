@@ -1,118 +1,182 @@
 # <img src="images/solvup-icon.svg" width="36" alt=""> SolvUp
 
-> 핸드 기록을 붙여 넣으면, 판단마다 솔버의 답과 놓친 EV를 쉬운 말로 알려 주는 텍사스 홀덤 복기 앱
+> A no-limit hold'em hand-review engine: it rebuilds the hand you actually played, solves it street by street with its own CFR solver, and prices every decision against the solver's answer.
 
-**한국어** · [English](README.en.md)
+**English** · [한국어](README.ko.md)
 
 [![Website](https://img.shields.io/badge/web-solvup.app-c8102e)](https://solvup.app)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)
-![Engine](https://img.shields.io/badge/engine-Rust%20CFR-orange)
-![Status](https://img.shields.io/badge/status-출시%20준비%20중-lightgrey)
+![Engine](https://img.shields.io/badge/engine-Rust%202024-orange)
+![Solver](https://img.shields.io/badge/solver-Discounted%20CFR-blue)
+![Platform](https://img.shields.io/badge/app-Windows%2010%2F11-lightgrey)
+![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
 
-![SolvUp 복기 화면](images/app-review.png)
-
-이 저장소는 SolvUp을 소개하고, **엔진 소스**([`engine/`](engine))를 투명성 목적으로 공개합니다. 데스크톱 앱, 설명 코치, 서버, 미리 푼 데이터는 비공개입니다.
+SolvUp is a desktop app for reviewing cash-game hands. This repository introduces it and publishes the **engine source** in [`engine/`](engine) for transparency. The desktop app, the plain-language coach, the account server and the precomputed data are not part of it.
 
 ---
 
-## 문제
+## Why another solver
 
-솔버는 포커 공부의 기준이지만, 처음 쓰는 사람에게는 문턱이 높습니다.
+A solver answers the spot you build for it: a board, two ranges, a stack, a list of bet sizes. Reviewing a hand you played is a different job. The spot has to be rebuilt exactly as it happened: from a preflop strategy that covers six seats, through the bet sizes really used, at the rake really taken. And it has to be fast enough to review a session, not one hand an evening.
 
-- **상황을 직접 만들어야 합니다.** 보드, 두 사람의 레인지, 스택, 베팅 크기, 레이크를 하나하나 넣어야 핸드 하나를 풀 수 있습니다.
-- **답을 읽기 어렵습니다.** 수천 개 조합의 빈도표를 보고 "내 선택이 얼마나 틀렸는지"를 스스로 계산해야 합니다.
-- **AI 코치는 계산하지 않습니다.** 말로 설명해 주는 도구는 많지만, 그 핸드를 실제로 풀어 본 답은 아닙니다.
+SolvUp's engine is built around that job. It reads the hand history, derives each player's range along the line actually played, solves every street under the hand's own conditions to a stated precision, and reports, for each of your decisions, what the solver plays there and how much EV your choice gave up. Where the review had to approximate, it says so.
 
-## SolvUp이 하는 일
+## How a hand is reviewed
 
-포커 사이트의 핸드 기록을 붙여 넣으면 나머지는 앱이 합니다.
+```mermaid
+flowchart TD
+    A["Hand history<br/>8 sites, or entered by hand"] --> B["Parse<br/>seats, stacks, sizes, rake, board"]
+    B --> C["Map the preflop line onto the<br/>6-max solution (sizes snapped, limps re-solved)"]
+    C --> D["Ranges at the flop<br/>narrowed by the solver's own strategy"]
+    D --> E{"Flop solved ahead<br/>for this spot?"}
+    E -- yes --> F["Read the record<br/>(strategy, action values, opponent mass)"]
+    E -- no --> G["Solve the flop on the PC<br/>to 0.5% of the pot"]
+    F --> H["Turn and river solved on the PC<br/>from the narrowed ranges, to 0.1%"]
+    G --> H
+    H --> I["Every decision priced:<br/>best action, frequencies, EV given up"]
+    I --> J["Coach: plain-language explanation<br/>in five languages"]
+```
 
-1. **기록 읽기.** 팟, 스택, 실제 베팅 크기, 레이크를 그대로 읽습니다.
-2. **레인지 정하기.** 미리 풀어 둔 6인 프리플랍 솔루션에서 시작해, 실제 액션을 따라 솔버 전략으로 레인지를 좁힙니다.
-3. **스트리트마다 풀기.** 플랍·턴·리버를 그 핸드의 조건 그대로 내 PC에서 풉니다. 자주 나오는 플랍은 미리 풀어 둔 결과를 서버에서 받아 바로 읽습니다.
-4. **판단마다 비교.** 프리플랍부터 리버까지, 내 선택이 솔버와 같은지("좋음") 아니면 EV를 얼마나 놓쳤는지 보여 줍니다.
-5. **쉬운 말로 설명.** 왜 그런지를 5개 언어로 설명하고, 설명에 나온 숫자가 어디서 나왔는지도 함께 보여 줍니다.
+1. **Parsing.** PokerStars, GGPoker, ACR, CoinPoker, Winamax, 888poker, PartyPoker and iPoker histories are read into one model: seats and positions, every chip put in, uncalled bets, rake and its cap, boards run more than once. Hands that cannot be read are reported, not dropped.
+2. **Preflop.** The line is mapped onto a precomputed 6-max preflop solution. A raise size that is not on the solution's tree is judged at the nearest one. An opponent's open limp, which the solution never plays, triggers a re-solve of the preflop with the limp locked to an assumed range.
+3. **Ranges.** Each player reaches the flop with the range the solution's strategy gives along that exact line, not a generic chart.
+4. **Postflop.** Each street is a subgame built from the hand's pot, stacks, rake and the sizes actually bet, plus a standard menu. Common flops come from a store solved ahead of time; the rest is solved on the user's PC.
+5. **Verdicts.** A decision is a mistake only when its EV falls short of the best action by more than the solve's own error. A mix the solver itself plays is never called a mistake.
 
-## 화면
+## What sets the engine apart
 
-**판단마다 솔버의 답과 놓친 EV**
+### A CFR engine written from scratch
 
-![복기 결과](images/review-ko.png)
+- **Discounted CFR** with node locking and suit isomorphism: on a two-tone flop the 49 turn cards reduce to 36 distinct ones, on a monotone flop to 23.
+- **Parallel action nodes** (rayon): the three-way regression test went from 472 s to 166 s.
+- **A memory guard.** The tree's size is estimated before it is built; a solve that would not fit the memory the PC has free deals out its last street instead of crashing the machine.
+- **Reference implementations beside the fast ones.** Card-removal sums, sorted showdowns and three-way showdowns each have a slow, obviously correct O(n²)/O(n³) version, and tests hold the fast path to it.
+- **New algorithms are proven on toy games first:** two- and three-player Kuhn poker, where the exact answers are known.
 
-**다른 패였다면, 솔버는 어떻게 쳤을까** (같은 자리, 패마다 솔버가 고른 답)
+### Preflop: a 6-max solution that knows what follows the flop
 
-![레인지 표](images/ranges-ko.png)
+The preflop game has six seats and 17,418 action nodes. Settling a flop by raw all-in equity overvalues hands that cannot play postflop, so the solution is settled with **realization factors** extracted from postflop solves of the flops each line reaches, iterated to a fixed point (residual 0.054 bb a hand). Solutions exist for 100bb and 50bb, with and without rake (5%, capped at 3bb), computed on cloud machines.
 
-**복기가 쌓이면 새는 곳이 보입니다** (자리별·상황별 EV 손실, 솔버와 같은 선택을 한 비율)
+### Postflop: the hand's own tree, to a stated precision
 
-![내 플레이 분석](images/leaks.png)
+The flop is solved until its exploitability is under **0.5% of the pot**, the turn and river under **0.1%**. The tree carries the sizes really bet, so a 19.5bb bet is judged as a 19.5bb bet, and the turn and river get a three-size menu of their own so that no single size is taken for *the* size. Each street reports its iterations, exploitability and memory beside the answer.
 
-## 주요 기능
+### Three-way pots
 
-| 구분 | 내용 |
+A separate three-player engine handles pots seen by three players, side pots included: pair-sum showdowns, pot layers, and a fold short-circuit that turns a dead seat into a heads-up game. The three-way flop is solved to 1% of the pot and its river settled by enumerating the runouts.
+
+### Flops solved ahead, and when a record may stand in
+
+For the most common preflop lines, all **1,755 flop classes** are solved ahead of time on cloud machines and kept on the server. A record holds only the flop's own action nodes: the average strategy as 16-bit shares, the best-response value of each action, and the opponent mass behind each hand. That is about 270 KB a flop, and a review downloads only the flop it was dealt.
+
+A record answers a spot only when the spot is the same game, or close enough by a measured margin:
+
+| Allowed difference | Limit | Verdicts that change (measured) |
+|---|---|---|
+| Effective stack | within 25% | 0.2-1.0% |
+| Rake cap, same rate | any | 0.6-0.9% |
+| Starting ranges (an open limp from another seat) | total variation ≤ 3% | 0.2-1.3% |
+| Open or raise size on the same line, values scaled to the pot | pot ratio ≤ 1.25 | 1.1-4.0% |
+
+Anything else is solved as played. A flop with an all-in in it is always solved, since a borrowed record would price the all-in at the wrong stack.
+
+### Open limps
+
+The 6-max solution plays no open limp outside the small blind. When an opponent limps, the preflop is re-solved on a tree with limps, the limper locked to an assumed range: a pruned solve of 45-80 s. The result depends only on the seat and the solution, so it is keyed by a hash of the solution file's contents and kept (about 13 MB). The common seats are computed ahead and served, so an open-limp review starts in a fraction of a second.
+
+### Honest about what it could not model
+
+Antes, money a site adds to the pot, a small blind that differs from the solution's, rake the solution did not include, a size read at the nearest record, a range borrowed from a nearby spot: each is listed with the review instead of being folded in silently.
+
+## Measured
+
+**Against an open-source reference** (WASM Postflop; same spot and tree, same PC, 16 threads, Discounted CFR on both sides):
+
+| | WASM Postflop | SolvUp engine |
+|---|---|---|
+| EV, OOP / IP (pot 100) | 55.6 / 44.4 | 55.56 / 44.44 |
+| OOP root: check / bet 50% | 38.9% / 61.1% | 38.9% / 61.1% |
+| Hand-class EVs (AA, KK, AKs, ...) | | within 0.1 of the reference |
+| Time to 220 iterations (0.10% of the pot) | 22.8 s | 17.4-20.6 s |
+
+**Review time** on an 8-core desktop (Ryzen 7 7800X3D), 100bb, 5% rake:
+
+| Heads-up pot | Time |
 |---|---|
-| **넣기** | PokerStars · GGPoker · ACR · CoinPoker · Winamax · 888poker · PartyPoker(베타) · iPoker(베타) 기록 읽기, 기록이 없으면 직접 입력, 여러 핸드를 걸어 두고 차례대로 복기 |
-| **계산** | 레이크를 반영한 6인 프리플랍 솔루션(100bb · 50bb), 플랍부터는 그 핸드 그대로 PC에서 직접 풀기, 2인 팟과 3인 팟, 림프 팟은 미리 풀어 둔 플랍으로 즉시 |
-| **결과** | 판단마다 "좋음" 또는 놓친 EV, 솔버가 고른 비율, 상대 레인지 구성과 내 패의 에퀴티, 패마다 솔버의 답(레인지 표), 반영하지 못한 부분(앤티 등)은 따로 표시 |
-| **공부** | 내 플레이 분석(자리별·상황별 손실), VPIP · PFR · 3벳 · c벳 성향 비교, 주마다 솔버와 같은 선택을 한 비율 |
-| **고급 설정** | 베팅·레이즈 크기와 횟수, 포지션별 크기, 동크 금지, 내·상대 레인지 직접 편집 |
-| **언어** | 한국어 · English · 日本語 · 简体中文 · 繁體中文 |
+| Limped pot, flop solved ahead, hand ends on the flop | about 1 s |
+| Limped pot, played to the river | 25-35 s |
+| Single-raised pot, flop solved ahead | 3-10 s |
+| Single-raised pot, flop solved on the PC | 2-8 min |
+| 3-bet pot, solved on the PC | 30-55 s |
 
-## 동작 방식
+## Example
+
+The engine's output for a single-raised pot whose flop was solved ahead (the button opens 2.5bb, the big blind calls with K♥J♥):
+
+```text
+preflop: UTG Fold, HJ Fold, CO Fold, BTN Raise 2.5, SB Fold, BB Call
+  preflop, pot 4.00bb with KJs: Fold +0.00bb (0%) | *Call +1.16bb (46%) | Raise 10 +1.15bb (54%) | All-in +0.30bb (0%)
+      -> best Call, loss 0.00bb
+flop AsKcQh: BB vs BTN, pot 5.50bb, stack 97.50bb
+  from the flop store, solved ahead: 269 iterations, 0.49% of the pot; bets [0.33, 0.75]
+  flop first, with KhJh: *Check +2.68bb (98%) | Bet 2 (33%) +2.65bb (1%) | Bet 4 (75%) +2.63bb (0%)
+      -> best Check, loss 0.00bb
+turn AsKcQh7d: BB vs BTN, pot 9.10bb, stack 95.70bb
+  solved: 5596 action nodes, 43 MB, 450 iterations, 0.10% of the pot, 5.1s
+  turn after Check, Bet 6 (66%), to call 6.00bb with KhJh: Fold +0.00bb (1%) | *Call +2.13bb (97%) | Bet 27 (179%) +0.31bb (2%)
+      -> best Call, loss 0.00bb
+```
+
+`*` marks the action taken. Each action shows its EV and how often the solver plays it with this hand.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-    HH["핸드 기록<br/>(8개 사이트)"] --> APP["데스크톱 앱<br/>Tauri + React"]
-    APP --> ENG["엔진<br/>Rust · CFR"]
-    PRE["6인 프리플랍 솔루션<br/>(Google Cloud에서 계산)"] --> ENG
-    STORE["미리 푼 플랍<br/>(AWS 스팟에서 계산)"] --> SRV["계정 · 데이터 서버<br/>PocketBase · Oracle Cloud"]
-    SRV <-->|"로그인 · 체험 확인<br/>필요한 플랍만 받기"| ENG
-    ENG --> COACH["코치<br/>5개 언어 설명"]
-    COACH --> APP
+    subgraph PC["User's PC"]
+        APP["Desktop app<br/>Tauri 2 + React"] --> ENG["Engine<br/>Rust, CFR"]
+        ENG --> COACH["Coach<br/>5 languages"]
+    end
+    subgraph SRV["SolvUp server"]
+        ACC["Accounts, trial, licences<br/>PocketBase"]
+        STORE["Flops solved ahead<br/>open-limp re-solves"]
+    end
+    subgraph CLOUD["Batch compute"]
+        PRE["6-max preflop solutions"]
+        FLOPS["Flop stores, 1,755 flops a line<br/>spot fleet that resumes after interruption"]
+    end
+    APP <--> ACC
+    ENG <-->|"only the flop a review needs"| STORE
+    FLOPS --> STORE
+    PRE --> ENG
 ```
 
-- **계산은 내 PC에서 합니다.** 서버는 계정 확인과 미리 풀어 둔 데이터를 내려 주는 일만 해서, 복기 횟수에 서버 비용이 붙지 않습니다.
-- **미리 풀어 둔 플랍은 앱에 넣지 않습니다.** 라인마다 플랍 1,755개 전부를 서버에 두고, 복기할 때 그 핸드의 플랍 하나만 받아 읽습니다. 앱 용량은 작게 유지됩니다.
+The solving happens on the user's PC. The server checks the account and hands out data computed ahead of time; it never solves, so reviews cost nothing to serve and are not counted.
 
-## 엔진
+## Repository layout
 
-직접 만든 CFR 엔진입니다. 다른 솔버의 코드를 쓰지 않았습니다. 소스는 [`engine/`](engine)에 있습니다.
+```text
+engine/
+  crates/core     CFR, game trees, ranges, 2- and 3-player subgames, 6-max preflop and realization, Kuhn test games
+  crates/hh       hand-history parsers and per-player statistics
+  crates/review   reviewing a hand: preflop mapping, street solves, verdicts, flop store, open limps
+  crates/cli      the `solver` command (review, presolve, sixmax, solve, measuring tools)
+```
 
-- **알고리즘:** Discounted CFR, 액션 노드 병렬화, 무늬 대칭(isomorphism) 처리, 메모리 한도 안에서만 풀기
-- **2인과 3인:** 헤즈업 서브게임과 3인 팟(사이드 팟 포함)을 모두 풉니다.
-- **6인 프리플랍:** 레이크와 스택별 솔루션, 플랍 이후의 실현율(realization)을 반영한 고정점 계산
-- **정밀도 목표:** 남은 오차가 팟의 0.5%(플랍), 0.1%(턴·리버) 아래가 될 때까지 풉니다.
-- **검증:** 새 알고리즘은 Kuhn 포커(2인·3인)로 먼저 확인하고, 수치 코드는 느리지만 명백한 참조 구현과 대조하는 테스트를 같이 둡니다.
+See [`engine/README.md`](engine/README.md) to build it. A review also needs a preflop solution, which is not published.
 
-## 수치
+## In numbers
 
-| 항목 | 값 |
+| | |
 |---|---|
-| 코드 | Rust 약 46,000줄 · TypeScript 약 16,500줄 · 서버 JS 약 6,600줄 |
-| 테스트 | 엔진 285개 · 앱 240개 · 코치 58개 |
-| 미리 푼 플랍 | 림프 팟 2라인 × 1,755개 완료, 레이즈 팟 16라인 × 1,755개 계산 중 (2026년 10월) |
-| 복기 시간 (8코어 PC, 미리 푼 플랍이 있을 때) | 플랍에서 끝나는 핸드 약 1초, 턴·리버까지 3~35초 |
+| Engine | about 46,000 lines of Rust, 285 tests (plus 240 in the app and 58 in the coach) |
+| Hand-history sites | 8 |
+| Languages | English, 한국어, 日本語, 简体中文, 繁體中文 |
+| Flops solved ahead | limped pots: 2 lines × 1,755 done; raised pots: 16 lines × 1,755 in progress (October 2026) |
 
-## 기술 스택
+## Status
 
-| 영역 | 사용 기술 |
-|---|---|
-| 엔진 | Rust 2024 (자체 CFR), rayon |
-| 앱 | Tauri 2, React, TypeScript, Vite |
-| 서버 | PocketBase (JS 훅), Caddy, Oracle Cloud |
-| 대규모 계산 | AWS EC2 스팟 (중단돼도 이어서 푸는 방식), Google Cloud |
-| 사이트 | 정적 HTML, 5개 언어 |
+The Windows app is preparing for launch; see [solvup.app](https://solvup.app). Planned after launch: macOS (Apple silicon), tournaments (with ICM for short stacks), faster three-way pots, a linked hand-history folder, a phone companion.
 
-## 현황과 계획
+## License
 
-- **지금:** Windows 데스크톱 앱 출시 준비 중입니다. [solvup.app](https://solvup.app)에서 출시 소식을 받으실 수 있습니다.
-- **업데이트 예정:** Mac(애플 실리콘), 토너먼트(짧은 스택은 ICM까지), 핸드 기록 폴더 연결, 레이즈 팟 미리 풀기, 3인 팟 속도, 휴대폰 앱
-
-## 문의
-
-- 웹: [solvup.app](https://solvup.app)
-- 메일: contact@solvup.app
-
----
-
-© 2026 SolvUp. All rights reserved. 엔진 소스와 이 저장소의 글·이미지는 보기 위한 용도로만 공개하며, 사용·복제·배포 권리는 주지 않습니다. 자세한 내용은 [LICENSE](LICENSE)를 보세요.
+© 2026 SolvUp. **All rights reserved.** The engine source and the contents of this repository are published to be read only; no right to use, copy, modify or distribute them is granted. See [LICENSE](LICENSE). Contact: contact@solvup.app
