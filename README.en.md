@@ -1,4 +1,4 @@
-# SolvUp
+# <img src="images/solvup-icon.svg" width="36" alt=""> SolvUp
 
 > Paste a hand history and get the solver's answer and the EV you missed at every decision, explained in plain language.
 
@@ -9,7 +9,7 @@
 ![Engine](https://img.shields.io/badge/engine-Rust%20CFR-orange)
 ![Status](https://img.shields.io/badge/status-pre--launch-lightgrey)
 
-![SolvUp](images/hero-en.png)
+![The SolvUp review screen (Korean)](images/app-review.png)
 
 This repository introduces SolvUp and publishes the **engine source** ([`engine/`](engine)) for transparency. The desktop app, the coach, the server and the precomputed data are private.
 
@@ -45,7 +45,7 @@ Paste a hand history from a poker site; the app does the rest.
 
 **As reviews add up, the leaks show** (EV lost by position and situation, how often you chose what the solver chooses; shown in Korean)
 
-![My play](images/leaks-ko.png)
+![My play](images/leaks.png)
 
 ## Features
 

@@ -1,4 +1,4 @@
-# SolvUp
+# <img src="images/solvup-icon.svg" width="36" alt=""> SolvUp
 
 > 핸드 기록을 붙여 넣으면, 판단마다 솔버의 답과 놓친 EV를 쉬운 말로 알려 주는 텍사스 홀덤 복기 앱
 
@@ -9,7 +9,7 @@
 ![Engine](https://img.shields.io/badge/engine-Rust%20CFR-orange)
 ![Status](https://img.shields.io/badge/status-출시%20준비%20중-lightgrey)
 
-![SolvUp](images/hero-ko.png)
+![SolvUp 복기 화면](images/app-review.png)
 
 이 저장소는 SolvUp을 소개하고, **엔진 소스**([`engine/`](engine))를 투명성 목적으로 공개합니다. 데스크톱 앱, 설명 코치, 서버, 미리 푼 데이터는 비공개입니다.
 
@@ -45,7 +45,7 @@
 
 **복기가 쌓이면 새는 곳이 보입니다** (자리별·상황별 EV 손실, 솔버와 같은 선택을 한 비율)
 
-![내 플레이 분석](images/leaks-ko.png)
+![내 플레이 분석](images/leaks.png)
 
 ## 주요 기능
 
