@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/app-Windows%2010%2F11-lightgrey)
 ![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
 
-SolvUp is a desktop app for reviewing cash-game hands. This repository introduces it and publishes the **engine source** in [`engine/`](engine) for transparency. The desktop app, the plain-language coach, the account server and the precomputed data are not part of it.
+SolvUp is a desktop app for reviewing cash-game hands. This repository introduces it: what it does, how the engine works and how it measures. The source code is not published.
 
 ---
 
@@ -152,18 +152,6 @@ flowchart LR
 
 The solving happens on the user's PC. The server checks the account and hands out data computed ahead of time; it never solves, so reviews cost nothing to serve and are not counted.
 
-## Repository layout
-
-```text
-engine/
-  crates/core     CFR, game trees, ranges, 2- and 3-player subgames, 6-max preflop and realization, Kuhn test games
-  crates/hh       hand-history parsers and per-player statistics
-  crates/review   reviewing a hand: preflop mapping, street solves, verdicts, flop store, open limps
-  crates/cli      the `solver` command (review, presolve, sixmax, solve, measuring tools)
-```
-
-See [`engine/README.md`](engine/README.md) to build it. A review also needs a preflop solution, which is not published.
-
 ## In numbers
 
 | | |
@@ -179,4 +167,4 @@ The Windows app is preparing for launch; see [solvup.app](https://solvup.app). P
 
 ## License
 
-© 2026 SolvUp. **All rights reserved.** The engine source and the contents of this repository are published to be read only; no right to use, copy, modify or distribute them is granted. See [LICENSE](LICENSE). Contact: contact@solvup.app
+© 2026 SolvUp. **All rights reserved.** The contents of this repository are published to be read only; no right to use, copy, modify or distribute them is granted. See [LICENSE](LICENSE). Contact: contact@solvup.app

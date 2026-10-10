@@ -10,7 +10,7 @@
 ![Platform](https://img.shields.io/badge/app-Windows%2010%2F11-lightgrey)
 ![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
 
-SolvUp은 캐시게임 핸드를 복기하는 데스크톱 앱입니다. 이 저장소는 SolvUp을 소개하고, **엔진 소스**를 [`engine/`](engine)에 투명성 목적으로 공개합니다. 데스크톱 앱, 설명 코치, 계정 서버, 미리 계산한 데이터는 들어 있지 않습니다.
+SolvUp은 캐시게임 핸드를 복기하는 데스크톱 앱입니다. 이 저장소는 SolvUp이 무엇을 하는지, 엔진이 어떻게 동작하고 어떻게 측정했는지 소개합니다. 소스 코드는 공개하지 않습니다.
 
 ---
 
@@ -152,18 +152,6 @@ flowchart LR
 
 계산은 사용자 PC에서 합니다. 서버는 계정을 확인하고 미리 계산한 데이터를 내려 줄 뿐 직접 풀지 않습니다. 그래서 복기에 서버 비용이 들지 않고, 복기 횟수도 세지 않습니다.
 
-## 저장소 구성
-
-```text
-engine/
-  crates/core     CFR, 게임 트리, 레인지, 2인·3인 서브게임, 6인 프리플랍과 실현율, Kuhn 테스트 게임
-  crates/hh       핸드 기록 읽기와 플레이어 통계
-  crates/review   핸드 복기: 프리플랍 대응, 스트리트별 풀기, 판정, 플랍 저장소, 오픈 림프
-  crates/cli      `solver` 명령 (review, presolve, sixmax, solve, 측정 도구)
-```
-
-빌드 방법은 [`engine/README.md`](engine/README.md)에 있습니다. 복기에는 프리플랍 솔루션이 필요한데, 이것은 공개하지 않습니다.
-
 ## 숫자로 보면
 
 | | |
@@ -179,4 +167,4 @@ Windows 앱 출시를 준비하고 있습니다. 소식은 [solvup.app](https://
 
 ## 라이선스
 
-© 2026 SolvUp. **All rights reserved.** 엔진 소스와 이 저장소의 내용은 읽기 위한 용도로만 공개하며, 사용·복제·수정·배포할 권리는 주지 않습니다. 자세한 내용은 [LICENSE](LICENSE)를 보세요. 문의: contact@solvup.app
+© 2026 SolvUp. **All rights reserved.** 이 저장소의 내용은 읽기 위한 용도로만 공개하며, 사용·복제·수정·배포할 권리는 주지 않습니다. 자세한 내용은 [LICENSE](LICENSE)를 보세요. 문의: contact@solvup.app
