@@ -1,6 +1,6 @@
 # <img src="images/solvup-icon.svg" width="36" alt=""> SolvUp
 
-> A no-limit hold'em hand-review engine: it rebuilds the hand you actually played, solves it street by street with its own CFR solver, and prices every decision against the solver's answer.
+> SolvUp is a no-limit hold'em hand-review app: it rebuilds the hand you actually played and prices every decision against the answer of its own CFR solver, using preflop tables and flop solutions computed in advance and solving the rest on your PC.
 
 **English** · [한국어](README.ko.md)
 
