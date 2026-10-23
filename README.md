@@ -10,7 +10,12 @@
 ![Platform](https://img.shields.io/badge/app-Windows%2010%2F11-lightgrey)
 ![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
 
-SolvUp is a desktop app for reviewing cash-game hands. This repository introduces it: what it does, how the engine works and how it measures. The source code is not published.
+SolvUp is a desktop app for reviewing cash-game hands, released for Windows on 15 October 2026. Since version 1.0.2 it also has a trainer: play hands against the solver and have every decision graded as you make it. This repository introduces the app: what it does, how the engine works and how it measures. The source code is not published.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/range-cell-en-dark.webp">
+  <img src="images/range-cell-en-light.webp" width="720" alt="Range chart with the AQs cell selected: equity 79.1%, call EV +34.97bb, every suit combo calls 100%">
+</picture>
 
 ---
 
@@ -79,6 +84,13 @@ A record answers a spot only when the spot is the same game, or close enough by 
 
 Anything else is solved as played. A flop with an all-in in it is always solved, since a borrowed record would price the all-in at the wrong stack.
 
+### Computing ahead, on cloud machines
+
+- A line's store is every one of the **1,755 flop classes** solved to 0.5% of the pot. One flop takes a few GB to about 10 GB of memory and a few minutes to a quarter of an hour on 16 cores.
+- So far **more than 50 lines, over 90,000 flops** have been solved and stored (18 GB). A review downloads only the one flop it was dealt (about 270 KB).
+- The work runs on spot machines, which the cloud may take back at any moment. A small always-on controller notices a lost machine, starts a replacement and resumes from the last checkpoint; results are pulled as they finish, so a reclaimed machine costs minutes, not the run.
+- A record is uploaded only after its precision and format are checked.
+
 ### Open limps
 
 The 6-max solution plays no open limp outside the small blind. When an opponent limps, the preflop is re-solved on a tree with limps, the limper locked to an assumed range: a pruned solve of 45-80 s. The result depends only on the seat and the solution, so it is keyed by a hash of the solution file's contents and kept (about 13 MB). The common seats are computed ahead and served, so an open-limp review starts in a fraction of a second.
@@ -86,6 +98,17 @@ The 6-max solution plays no open limp outside the small blind. When an opponent 
 ### Honest about what it could not model
 
 Antes, money a site adds to the pot, a small blind that differs from the solution's, rake the solution did not include, a size read at the nearest record, a range borrowed from a nearby spot: each is listed with the review instead of being folded in silently.
+
+## Problems that were not easy
+
+- **An exact 6-max preflop table does not fit in memory.** Solving the preflop together with 200 sampled flops played out takes about 1.4 TB for a single heads-up line. The shipped tables therefore use the realization fixed point above: flops solved apart, per-hand realization factors fed back into the preflop, round after round. Current research replaces the sampled flops with a neural network that values a flop for any pair of ranges, which brings the same kind of solve down to about 4 GB on one PC.
+- **Three players on the flop** needed their own engine, with side pots and the switch to a heads-up game once someone folds.
+- **Solves larger than the PC** are sized before they start and settle their last street instead of freezing the machine.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/trainer-dark.webp">
+  <img src="images/trainer-light.webp" width="720" alt="The trainer: on the river the opponent bets 6bb; on the right, the solver's frequencies, each action's EV and the explanation">
+</picture>
 
 ## Measured
 
@@ -128,6 +151,13 @@ turn AsKcQh7d: BB vs BTN, pot 9.10bb, stack 95.70bb
 
 `*` marks the action taken. Each action shows its EV and how often the solver plays it with this hand.
 
+Across many hands the app sums this up per seat, street and week:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/analysis-en-dark.webp">
+  <img src="images/analysis-en-light.webp" width="720" alt="My play analysis: 400 made-up hands, 93% the same choice as the solver, EV loss per 100 hands, losses by seat and the weekly match rate">
+</picture>
+
 ## Architecture
 
 ```mermaid
@@ -156,14 +186,15 @@ The solving happens on the user's PC. The server checks the account and hands ou
 
 | | |
 |---|---|
-| Engine | about 46,000 lines of Rust, 285 tests (plus 240 in the app and 58 in the coach) |
+| Engine | about 44,000 lines of Rust, 323 tests (plus the coach, about 7,000 lines, and the app, about 24,000 lines of TypeScript) |
 | Hand-history sites | 8 |
 | Languages | English, 한국어, 日本語, 简体中文, 繁體中文 |
-| Flops solved ahead | limped pots: 2 lines × 1,755 done; raised pots: 16 lines × 1,755 in progress (October 2026) |
+| Flops solved ahead | more than 50 lines, over 90,000 flops (18 GB) |
+| Practice | a trainer that plays whole hands against the solver (1.0.2) |
 
 ## Status
 
-The Windows app is preparing for launch; see [solvup.app](https://solvup.app). Planned after launch: macOS (Apple silicon), tournaments (with ICM for short stacks), faster three-way pots, a linked hand-history folder, a phone companion.
+The Windows app is out; see [solvup.app](https://solvup.app). Planned next: macOS (Apple silicon), tournaments (with ICM for short stacks), faster three-way pots, a linked hand-history folder, a phone companion.
 
 ## License
 
